@@ -117,3 +117,55 @@ applyMove (robot, goal, blocks) dir = (nextRobot, nextGoal, nextBlocks)
     -- Si la respuesta es sí, recalculamos su posición rodándola hacia adelante;
     -- si es no, dejamos la caja intacta exactamente donde estaba en el mapa.
     nextBlocks = map (\b -> if nextRobot == b then moveCoord b dir else b) blocks 
+   
+-- =============================================================================
+-- PARTE 4 - MEJOR SOLUCIÓN 
+-- =============================================================================
+
+-- Determina si un estado es ganador. El juego termina con éxito si
+-- la Caja Objetivo llega a la esquina (5,5).
+isGoalState :: State -> Bool
+isGoalState (_, (5,5), _) = True
+isGoalState _ = False
+
+-- Función principal solicitada en el enunciado.
+-- Retorna una tupla: (Número total de movimientos, Lista con la secuencia de estados).
+solveWarehouse :: State -> (Int, [State])
+solveWarehouse initialState
+    -- Si el estado inicial ya está en la meta, terminamos con 0 movimientos.
+    | isGoalState initialState = (0, [initialState])
+    -- De lo contrario, arrancamos el BFS.
+    -- Inicializamos la cola con un camino que contiene solo el estado inicial: [[initialState]]
+    -- Inicializamos los visitados conteniendo solo el estado inicial: [initialState]
+    | otherwise = bfs [[initialState]] [initialState]
+
+-- Función auxiliar que ejecuta la recursión del BFS.
+-- Parámetros:
+-- 1. La cola de exploración: una lista de caminos (donde cada camino es [State], ordenado del último al primero).
+-- 2. La lista de estados que ya han sido visitados para evitar ciclos.
+bfs :: [[State]] -> [State] -> (Int, [State])
+bfs [] _ = (0, []) -- Si la cola se vacía, significa que exploramos todo y no hay solución.
+bfs (currentPath:queue) visited
+    -- ¡Victoria! Si el estado más reciente del camino actual es la meta.
+    | isGoalState currentState = (length currentPath - 1, reverse currentPath)
+    -- Si no es meta, expandimos el nodo generando sus vecinos válidos no visitados.
+    | otherwise = bfs (queue ++ newPaths) (visited ++ newStates)
+  where
+    -- El estado actual es el que está al frente del camino (el último al que llegamos).
+    currentState = head currentPath
+
+    -- 1. Generamos los movimientos posibles de forma legal.
+    -- Tomamos las 4 direcciones básicas, filtramos cuáles son válidas desde aquí
+    -- y aplicamos el movimiento para obtener los estados resultantes.
+    allMoves = [U, D, L, R]
+    validNeighbors = [ applyMove currentState m | m <- allMoves, isValidMove currentState m ]
+
+    -- 2. Filtramos para quedarnos ÚNICAMENTE con los estados que nunca hemos visitado.
+    unvisitedNeighbors = [ n | n <- validNeighbors, not (n `elem` visited) ]
+
+    -- 3. Construimos los nuevos caminos extendidos para la cola de Git/Haskell.
+    -- Para cada vecino nuevo, creamos un nuevo camino metiéndolo al frente.
+    newPaths = [ n : currentPath | n <- unvisitedNeighbors ]
+
+    -- 4. Guardamos los nuevos estados en el registro de visitados.
+    newStates = unvisitedNeighbors

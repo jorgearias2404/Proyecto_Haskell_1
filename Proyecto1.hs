@@ -21,6 +21,21 @@ type Coord = (Int, Int) -- (Fila, Columna)
 data Move = U | D | L | R 
     deriving (Show, Eq)
 
+-- deriving automaticamente genera implementaciones por defecto
+-- para ciertas clases de tipos (type classes)
+--
+-- Show: permite convertir el tipo a String (para mostrar en consola con print)
+-- Eq: permite comparar dos valores del tipo con == y /=
+--
+-- Sin deriving, no podrias hacer:
+--   print U           -- error
+--   U == U            -- error
+--
+-- Con deriving (Show, Eq), puedes:
+--   print U           -- muestra "U"
+--   U == U            -- devuelve True
+--   U /= D            -- devuelve True
+
 type State = (Coord, Coord, [Coord]) -- (Robot, CajaObjetivo, CajasDeBloqueo)
 
 -- =============================================================================

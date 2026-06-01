@@ -1,3 +1,14 @@
+-- =============================================================================
+-- UNIVERSIDAD CENTRAL DE VENEZUELA
+-- FACULTAD DE CIENCIAS - ESCUELA DE COMPUTACIÓN
+--
+-- PROYECTO 1: SIMULACIÓN DE ALMACÉN ROBÓTICO (SOKOBAN)
+--
+-- INTEGRANTES:
+--   - Franyer Pérez - C.I.: 30136615
+--   - Jorge Arias - C.I.: 30245916
+--
+-- =============================================================================
 module Proyecto1 where
 import Data.List (nub)
 

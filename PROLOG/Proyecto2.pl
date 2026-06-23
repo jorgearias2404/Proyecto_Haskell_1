@@ -52,20 +52,20 @@ isValidMove(state((R_Row, R_Col), (T_Row, T_Col), Blocks), Move) :-
     move_coord(R_Row, R_Col, Move, NextR_Row, NextR_Col),
     isValidCoord(NextR_Row, NextR_Col),
     
-    % Escenario A: La siguiente casilla contiene la Caja Objetivo
+    %  La siguiente casilla contiene la Caja Objetivo
     (   NextR_Row == T_Row, NextR_Col == T_Col
     ->  move_coord(T_Row, T_Col, Move, Behind_Row, Behind_Col),
         isValidCoord(Behind_Row, Behind_Col),
         \+ member((Behind_Row, Behind_Col), Blocks)
         
-    % Escenario B: La siguiente casilla contiene una Caja de Bloqueo
+    % La siguiente casilla contiene una Caja de Bloqueo
     ;   member((NextR_Row, NextR_Col), Blocks)
     ->  move_coord(NextR_Row, NextR_Col, Move, Behind_Row, Behind_Col),
         isValidCoord(Behind_Row, Behind_Col),
         \+ (Behind_Row == T_Row, Behind_Col == T_Col),
         \+ member((Behind_Row, Behind_Col), Blocks)
         
-    % Escenario C: La casilla está completamente vacía
+    % La casilla está completamente vacía
     ;   true
     ).
 
@@ -76,12 +76,12 @@ isValidMove(state((R_Row, R_Col), (T_Row, T_Col), Blocks), Move) :-
 % Predicado moveRobot(+CurrentState, +Move, -NewState)
 moveRobot(CurrentState, Move, _) :-
     \+ isValidMove(CurrentState, Move), !, fail.
-    
+
 moveRobot(state((R_Row, R_Col), (T_Row, T_Col), Blocks), Move, state((NextR_Row, NextR_Col), (NewT_Row, NewT_Col), NewBlocks)) :-
     % Calculamos la nueva posición del robot
     move_coord(R_Row, R_Col, Move, NextR_Row, NextR_Col),
     
-    % Actualizar posición de la Caja Objetivo si es empujada
+    % Actualizar posición de la Caja Objetivo 
     (   NextR_Row == T_Row, NextR_Col == T_Col
     ->  move_coord(T_Row, T_Col, Move, NewT_Row, NewT_Col)
     ;   NewT_Row = T_Row, NewT_Col = T_Col
@@ -90,7 +90,7 @@ moveRobot(state((R_Row, R_Col), (T_Row, T_Col), Blocks), Move, state((NextR_Row,
     % Actualizar la lista de Cajas de Bloqueo si alguna fue empujada
     maplist(update_block(NextR_Row, NextR_Col, Move), Blocks, NewBlocks).
 
-% Auxiliar para mapear y desplazar el bloque colisionado individualmente
+% Auxiliar para mapear y desplazar el bloque colisionado 
 update_block(NextR_Row, NextR_Col, Move, (B_Row, B_Col), (NewB_Row, NewB_Col)) :-
     (   NextR_Row == B_Row, NextR_Col == B_Col
     ->  move_coord(B_Row, B_Col, Move, NewB_Row, NewB_Col)
@@ -101,7 +101,7 @@ update_block(NextR_Row, NextR_Col, Move, (B_Row, B_Col), (NewB_Row, NewB_Col)) :
 % PARTE 4 - SOLUCIÓN (ALGORITMO BFS)
 % =============================================================================
 
-% Condición de victoria: la Caja Objetivo alcanza la esquina (5,5)
+% Condición de victoria:
 isGoalState(state(_, (5, 5), _)).
 
 % Predicado principal: solveWarehouse(+StartState, -Solution)
@@ -133,7 +133,7 @@ bfs_queue([path(CurrentState, Actions) | RestQueue], Visited, Solution) :-
     extract_states(NewPaths, NewStates),
     append(Visited, NewStates, UpdatedVisited),
     
-    % Colocar los nuevos caminos al final de la cola (Garantía de BFS para mínimo de pasos)
+    % Colocar los nuevos caminos al final de la cola 
     append(RestQueue, NewPaths, NewQueue),
     
     % Continuar la búsqueda

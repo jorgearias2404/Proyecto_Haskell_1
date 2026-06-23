@@ -1,7 +1,7 @@
 % =============================================================================
 % UNIVERSIDAD CENTRAL DE VENEZUELA
 % FACULTAD DE CIENCIAS - ESCUELA DE COMPUTACIÓN
-% PROYECTO 2: SIMULACIÓN DE ALMACÉN ROBÓTICO (SOKOBAN) EN PROLOG
+% PROYECTO 2: SIMULACIÓN DE ALMACÉN ROBÓTICO 
 % =============================================================================
 
 :- dynamic robot/2.
@@ -14,6 +14,7 @@
 isValidCoord(Row, Col) :-
     Row >= 0, Row =< 5,
     Col >= 0, Col =< 5.
+
 % Predicado principal de inicialización
 initialBoard((R_Row, R_Col), (T_Row, T_Col), BlockingBoxes) :-
     % 1. Validar límites de la matriz 6x6 para Robot y Caja Objetivo
@@ -73,6 +74,9 @@ isValidMove(state((R_Row, R_Col), (T_Row, T_Col), Blocks), Move) :-
 % =============================================================================
 
 % Predicado moveRobot(+CurrentState, +Move, -NewState)
+moveRobot(CurrentState, Move, _) :-
+    \+ isValidMove(CurrentState, Move), !, fail.
+    
 moveRobot(state((R_Row, R_Col), (T_Row, T_Col), Blocks), Move, state((NextR_Row, NextR_Col), (NewT_Row, NewT_Col), NewBlocks)) :-
     % Calculamos la nueva posición del robot
     move_coord(R_Row, R_Col, Move, NextR_Row, NextR_Col),

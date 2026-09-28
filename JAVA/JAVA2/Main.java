@@ -20,10 +20,6 @@ public class Main {
             ROBOTS_ACTIVOS =
             new AtomicInteger(0);
 
-    // =========================================================
-    // MAIN
-    // =========================================================
-
     public static void main(String[] args) {
 
         if (args.length != 1) {
@@ -37,36 +33,21 @@ public class Main {
 
         try {
 
-            /*
-             * 1. Leer archivo.
-             */
             Configuracion configuracion =
                     leerArchivo(args[0]);
 
-            /*
-             * 2. Validar.
-             */
             validarConfiguracion(
                     configuracion
             );
 
-            /*
-             * 3. Crear tablero.
-             */
             Tablero tablero =
                     new Tablero();
 
-            /*
-             * 4. Inicializar cajas.
-             */
             inicializarCajas(
                     tablero,
                     configuracion
             );
 
-            /*
-             * 5. Crear robots.
-             */
             List<Robot> robots =
                     crearRobots(
                             tablero,
@@ -79,17 +60,14 @@ public class Main {
 
             ACTIVA.set(true);
 
-            /*
-             * 6. Crear hilos.
-             */
-            List<Thread> productores =
+            List<Thread> hilosProductores =
                     new ArrayList<>();
 
-            List<Thread> robotsHilos =
+            List<Thread> hilosRobots =
                     new ArrayList<>();
 
             /*
-             * Productores.
+             * Crear productores.
              */
             for (
                     int i = 1;
@@ -107,11 +85,11 @@ public class Main {
                                 "Productor-" + i
                         );
 
-                productores.add(hilo);
+                hilosProductores.add(hilo);
             }
 
             /*
-             * Robots.
+             * Crear robots.
              */
             for (Robot robot : robots) {
 
@@ -124,54 +102,63 @@ public class Main {
                                 robot.getId()
                         );
 
-                robotsHilos.add(hilo);
+                hilosRobots.add(hilo);
             }
 
             /*
-             * 7. Iniciar productores.
+             * Primero iniciamos productores.
              */
-            for (Thread hilo : productores) {
+            for (Thread hilo :
+                    hilosProductores) {
+
                 hilo.start();
             }
 
             /*
-             * 8. Iniciar robots.
+             * Luego iniciamos robots.
              */
-            for (Thread hilo : robotsHilos) {
+            for (Thread hilo :
+                    hilosRobots) {
+
                 hilo.start();
             }
 
             /*
-             * 9. Esperar a los robots.
+             * Esperamos a todos los robots.
              */
-            for (Thread hilo : robotsHilos) {
+            for (Thread hilo :
+                    hilosRobots) {
 
                 hilo.join();
             }
 
             /*
-             * 10. Cuando no quedan robots, los productores
-             * terminan mediante ACTIVA = false.
+             * Ya no quedan consumidores.
+             * Detenemos productores.
              */
-            for (Thread hilo : productores) {
+            ACTIVA.set(false);
 
-                /*
-                 * Si algún productor está esperando en
-                 * Condition.await(), lo despertamos.
-                 */
+            /*
+             * Despertar productores que puedan estar
+             * esperando en Condition.await().
+             */
+            for (Thread hilo :
+                    hilosProductores) {
+
                 hilo.interrupt();
             }
 
             /*
-             * 11. Esperar a los productores.
+             * Esperamos a los productores.
              */
-            for (Thread hilo : productores) {
+            for (Thread hilo :
+                    hilosProductores) {
 
                 hilo.join();
             }
 
             /*
-             * 12. Reporte final.
+             * Reporte final.
              */
             tablero.imprimirReporteFinal();
 
@@ -207,7 +194,7 @@ public class Main {
     }
 
     // =========================================================
-    // LECTURA DEL ARCHIVO
+    // LECTURA
     // =========================================================
 
     private static Configuracion leerArchivo(
@@ -375,45 +362,41 @@ public class Main {
         }
 
         /*
-         * El (5,5) está reservado.
-         *
-         * Por tanto, solamente tenemos 35 posiciones
-         * disponibles para las entidades iniciales.
+         * 36 casillas - 1 casilla reservada para (5,5).
          */
-        int entidadesIniciales =
+        int posicionesNecesarias =
                 c.getCajasObjetivoIniciales()
                 +
                 c.getCajasBloqueoIniciales()
                 +
                 c.getCantidadRobots();
 
-        if (entidadesIniciales > 35) {
+        if (posicionesNecesarias > 35) {
 
             throw new IllegalArgumentException(
                     "Hay demasiadas entidades iniciales. " +
-                    "El tablero dispone de 35 posiciones " +
-                    "porque (5,5) está reservado."
+                    "El máximo es 35 porque (5,5) está reservado."
             );
         }
     }
 
     // =========================================================
-    // INICIALIZAR CAJAS
+    // CAJAS INICIALES
     // =========================================================
 
     private static void inicializarCajas(
             Tablero tablero,
             Configuracion c) {
 
-        Random random = new Random();
+        Random random =
+                new Random();
 
         List<Posicion> posiciones =
                 new ArrayList<>();
 
-        /*
-         * El (5,5) queda reservado.
-         */
-        for (int i = 0; i < Tablero.FILAS; i++) {
+        for (int i = 0;
+             i < Tablero.FILAS;
+             i++) {
 
             for (int j = 0;
                  j < Tablero.COLUMNAS;
@@ -423,7 +406,8 @@ public class Main {
                         new Posicion(i, j);
 
                 if (!posicion.equals(
-                        Tablero.SALIDA)) {
+                        Tablero.SALIDA
+                )) {
 
                     posiciones.add(posicion);
                 }
@@ -453,7 +437,7 @@ public class Main {
         }
 
         /*
-         * Cajas de bloqueo.
+         * Cajas bloqueo.
          */
         for (
                 int i = 0;
@@ -469,7 +453,7 @@ public class Main {
     }
 
     // =========================================================
-    // CREAR ROBOTS
+    // ROBOTS
     // =========================================================
 
     private static List<Robot> crearRobots(
@@ -497,7 +481,7 @@ public class Main {
 
                 throw new IllegalArgumentException(
                         "No existe una posición libre " +
-                        "para colocar al robot " + i
+                        "para el Robot-" + i
                 );
             }
 
@@ -518,7 +502,7 @@ public class Main {
     }
 
     // =========================================================
-    // CONTROL DE SIMULACIÓN
+    // ESTADO DE LA SIMULACIÓN
     // =========================================================
 
     public static int siguienteTick() {
@@ -535,7 +519,6 @@ public class Main {
                 ROBOTS_ACTIVOS.decrementAndGet();
 
         if (restantes <= 0) {
-
             ACTIVA.set(false);
         }
     }

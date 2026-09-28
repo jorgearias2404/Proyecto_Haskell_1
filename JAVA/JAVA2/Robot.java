@@ -39,7 +39,6 @@ public class Robot {
     }
 
     public void consumirBateria() {
-
         if (bateria > 0) {
             bateria--;
         }

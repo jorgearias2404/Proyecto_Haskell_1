@@ -22,33 +22,34 @@ public class RobotHilo implements Runnable {
                 Main.simulacionActiva()
         ) {
 
-            boolean realizoOperacion =
-                    tablero.ejecutarMovimientoRobot(
-                            robot
-                    );
+            boolean trabajoRealizado =
+                    tablero.ejecutarTurnoRobot(robot);
 
             /*
-             * Si no puede moverse, no consume batería.
-             *
-             * Esto respeta:
-             * "Si no hay Cajas Objetivo en el tablero,
-             * el robot debe ingresar nuevamente..."
+             * Si no pudo hacer nada en este turno,
+             * espera un poco para no consumir CPU
+             * innecesariamente.
              */
-            if (!realizoOperacion) {
+            if (!trabajoRealizado) {
 
                 try {
-
                     Thread.sleep(80);
-
                 } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            } else {
 
+                try {
+                    Thread.sleep(50);
+                } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     break;
                 }
             }
         }
 
-        tablero.registrarRobotFinalizado();
+        tablero.registrarRobotFinalizado(robot);
 
         Main.robotTerminado();
     }

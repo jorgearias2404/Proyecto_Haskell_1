@@ -1,4 +1,13 @@
-import java.util.*;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -12,45 +21,45 @@ public class Tablero {
 
     private final TipoCaja[][] matriz;
 
-    private final List<Robot> robots;
+    private final List<Robot> robots =
+            new ArrayList<>();
 
     /*
-     * Lock principal del recurso compartido.
+     * Recurso compartido.
      */
     private final ReentrantLock lock =
             new ReentrantLock(true);
 
     /*
-     * Los productores esperan aquí cuando no existen
-     * casillas disponibles.
+     * Productores esperan aquí cuando el tablero
+     * está completamente ocupado.
      */
     private final Condition espacioDisponible =
             lock.newCondition();
 
-    /*
-     * Contadores para el reporte final.
-     */
     private int cajasObjetivoExtraidas = 0;
+
     private int saturaciones = 0;
+
     private int robotsFinalizados = 0;
 
     public Tablero() {
 
-        matriz = new TipoCaja[FILAS][COLUMNAS];
-
-        robots = new ArrayList<>();
+        matriz =
+                new TipoCaja[FILAS][COLUMNAS];
 
         for (int i = 0; i < FILAS; i++) {
 
             for (int j = 0; j < COLUMNAS; j++) {
 
-                matriz[i][j] = TipoCaja.VACIA;
+                matriz[i][j] =
+                        TipoCaja.VACIA;
             }
         }
     }
 
     // =========================================================
-    // OPERACIONES DE INICIALIZACIÓN
+    // INICIALIZACIÓN
     // =========================================================
 
     public void colocarCajaInicial(
@@ -62,29 +71,36 @@ public class Tablero {
         try {
 
             if (!dentroDelTablero(posicion)) {
+
                 throw new IllegalArgumentException(
-                        "Posición fuera del tablero: " + posicion
+                        "Posición fuera del tablero: "
+                        + posicion
                 );
             }
 
             if (posicion.equals(SALIDA)) {
+
                 throw new IllegalArgumentException(
-                        "La casilla (5,5) está reservada para la salida."
+                        "La posición (5,5) está reservada."
                 );
             }
 
-            if (matriz[posicion.getFila()][posicion.getColumna()]
+            if (matriz[posicion.getFila()]
+                    [posicion.getColumna()]
                     != TipoCaja.VACIA) {
 
                 throw new IllegalStateException(
-                        "La posición ya contiene una caja: " + posicion
+                        "La posición ya está ocupada: "
+                        + posicion
                 );
             }
 
-            matriz[posicion.getFila()][posicion.getColumna()] =
+            matriz[posicion.getFila()]
+                  [posicion.getColumna()] =
                     tipo;
 
         } finally {
+
             lock.unlock();
         }
     }
@@ -95,7 +111,8 @@ public class Tablero {
 
         try {
 
-            Posicion posicion = robot.getPosicion();
+            Posicion posicion =
+                    robot.getPosicion();
 
             if (!dentroDelTablero(posicion)) {
 
@@ -111,24 +128,26 @@ public class Tablero {
                 );
             }
 
-            if (matriz[posicion.getFila()][posicion.getColumna()]
-                    != TipoCaja.VACIA) {
+            if (!casillaLibreSinRobots(posicion)) {
 
                 throw new IllegalStateException(
-                        "El robot comienza sobre una caja."
+                        "Posición inicial ocupada: "
+                        + posicion
                 );
             }
 
             if (hayRobotEn(posicion)) {
 
                 throw new IllegalStateException(
-                        "Ya existe un robot en " + posicion
+                        "Ya existe un robot en "
+                        + posicion
                 );
             }
 
             robots.add(robot);
 
         } finally {
+
             lock.unlock();
         }
     }
@@ -146,17 +165,17 @@ public class Tablero {
 
         try {
 
-            /*
-             * Si no hay espacio, el productor espera.
-             */
-            while (noHayEspacio()) {
+            while (
+                    noHayEspacio()
+                    &&
+                    Main.simulacionActiva()
+            ) {
 
                 saturaciones++;
 
-                System.out.println(
-                        "[Tick-" + Main.siguienteTick() + "] " +
-                        "[" + productorId + "] " +
-                        "ESPERA_SATURACION -> " +
+                registrar(
+                        productorId,
+                        "ESPERA_SATURACION",
                         "(Intento de insertar en tablero lleno)"
                 );
 
@@ -172,9 +191,10 @@ public class Tablero {
                 }
             }
 
-            /*
-             * Buscamos las casillas realmente libres.
-             */
+            if (!Main.simulacionActiva()) {
+                return false;
+            }
+
             List<Posicion> libres =
                     obtenerCasillasLibres();
 
@@ -184,39 +204,45 @@ public class Tablero {
 
             Posicion posicion =
                     libres.get(
-                            random.nextInt(libres.size())
+                            random.nextInt(
+                                    libres.size()
+                            )
                     );
 
-            matriz[posicion.getFila()][posicion.getColumna()] =
+            matriz[posicion.getFila()]
+                  [posicion.getColumna()] =
                     tipo;
 
-            String nombre;
+            String accion;
 
             if (tipo == TipoCaja.OBJETIVO) {
-                nombre = "INSERTAR_OBJETIVO";
+
+                accion = "INSERTAR_OBJETIVO";
+
             } else {
-                nombre = "INSERTAR_BLOQUEO";
+
+                accion = "INSERTAR_BLOQUEO";
             }
 
-            System.out.println(
-                    "[Tick-" + Main.siguienteTick() + "] " +
-                    "[" + productorId + "] " +
-                    nombre +
-                    " -> " + posicion
+            registrar(
+                    productorId,
+                    accion,
+                    posicion.toString()
             );
 
             return true;
 
         } finally {
+
             lock.unlock();
         }
     }
 
     // =========================================================
-    // ROBOTS
+    // TURNO DEL ROBOT
     // =========================================================
 
-    public boolean ejecutarMovimientoRobot(
+    public boolean ejecutarTurnoRobot(
             Robot robot) {
 
         lock.lock();
@@ -228,121 +254,59 @@ public class Tablero {
             }
 
             /*
-             * Primero buscamos una caja objetivo.
+             * Primero buscamos el mejor plan disponible.
              */
-            Posicion objetivo =
-                    buscarObjetivoMasCercano(robot);
+            Plan mejorPlan =
+                    buscarMejorPlan(robot);
 
             /*
-             * Si no existe objetivo, el robot explora.
+             * Si existe una ruta hacia alguna caja,
+             * ejecutamos solamente el primer paso.
+             *
+             * En el siguiente turno se vuelve a calcular
+             * la ruta con el estado actual del tablero.
              */
-            if (objetivo == null) {
+            if (mejorPlan != null
+                    &&
+                !mejorPlan.pasos.isEmpty()) {
 
-                Posicion movimiento =
-                        buscarMovimientoExploracion(robot);
+                Paso paso =
+                        mejorPlan.pasos.get(0);
 
-                if (movimiento == null) {
-                    return false;
-                }
+                if (paso.tipo ==
+                        TipoPaso.MOVER) {
 
-                moverRobot(robot, movimiento);
-
-                robot.consumirBateria();
-
-                registrar(
-                        robot.getId(),
-                        "MOVER",
-                        movimiento +
-                        " -> Batería: " +
-                        robot.getBateria()
-                );
-
-                return true;
-            }
-
-            /*
-             * Si la caja ya está en (5,5), se considera entregada.
-             * En condiciones normales esto no debería ocurrir porque
-             * la extracción se realiza al empujarla.
-             */
-            if (objetivo.equals(SALIDA)) {
-
-                matriz[objetivo.getFila()]
-                      [objetivo.getColumna()] =
-                        TipoCaja.VACIA;
-
-                cajasObjetivoExtraidas++;
-
-                espacioDisponible.signalAll();
-
-                return true;
-            }
-
-            /*
-             * ¿Podemos empujarla inmediatamente?
-             */
-            if (puedeEmpujar(robot, objetivo)) {
-
-                empujarCaja(robot, objetivo);
-
-                return true;
-            }
-
-            /*
-             * Buscamos la mejor posición desde donde empujar.
-             */
-            Posicion posicionEmpuje =
-                    obtenerPosicionEmpuje(objetivo);
-
-            if (posicionEmpuje != null) {
-
-                List<Posicion> camino =
-                        buscarCamino(
-                                robot.getPosicion(),
-                                posicionEmpuje
-                        );
-
-                if (camino != null &&
-                    camino.size() >= 2) {
-
-                    Posicion siguiente =
-                            camino.get(1);
-
-                    moverRobot(robot, siguiente);
-
-                    robot.consumirBateria();
-
-                    registrar(
-                            robot.getId(),
-                            "MOVER",
-                            siguiente +
-                            " -> Batería: " +
-                            robot.getBateria()
+                    ejecutarMovimiento(
+                            robot,
+                            paso.destinoRobot
                     );
 
                     return true;
                 }
+
+                if (paso.tipo ==
+                        TipoPaso.EMPUJAR) {
+
+                    return ejecutarEmpuje(
+                            robot,
+                            paso.posicionCaja,
+                            paso.destinoCaja
+                    );
+                }
             }
 
             /*
-             * Si no puede llegar a la posición de empuje,
-             * intenta explorar.
+             * Si ninguna caja puede ser alcanzada en este
+             * momento, el robot explora una casilla libre.
              */
-            Posicion exploracion =
+            Posicion movimiento =
                     buscarMovimientoExploracion(robot);
 
-            if (exploracion != null) {
+            if (movimiento != null) {
 
-                moverRobot(robot, exploracion);
-
-                robot.consumirBateria();
-
-                registrar(
-                        robot.getId(),
-                        "MOVER",
-                        exploracion +
-                        " -> Batería: " +
-                        robot.getBateria()
+                ejecutarMovimiento(
+                        robot,
+                        movimiento
                 );
 
                 return true;
@@ -351,21 +315,19 @@ public class Tablero {
             return false;
 
         } finally {
+
             lock.unlock();
         }
     }
 
     // =========================================================
-    // BUSCAR OBJETIVO
+    // BUSCAR EL MEJOR PLAN
     // =========================================================
 
-    private Posicion buscarObjetivoMasCercano(
+    private Plan buscarMejorPlan(
             Robot robot) {
 
-        Posicion mejor = null;
-
-        int menorDistancia =
-                Integer.MAX_VALUE;
+        Plan mejor = null;
 
         for (int i = 0; i < FILAS; i++) {
 
@@ -377,25 +339,26 @@ public class Tablero {
                     continue;
                 }
 
-                Posicion posicion =
+                Posicion caja =
                         new Posicion(i, j);
 
-                int distancia =
-                        Math.abs(
-                                robot.getPosicion().getFila()
-                                - i
-                        )
-                        +
-                        Math.abs(
-                                robot.getPosicion().getColumna()
-                                - j
+                Plan plan =
+                        buscarPlanParaCaja(
+                                robot.getPosicion(),
+                                caja
                         );
 
-                if (distancia < menorDistancia) {
+                if (plan == null) {
+                    continue;
+                }
 
-                    menorDistancia = distancia;
+                if (mejor == null
+                        ||
+                    plan.pasos.size()
+                        <
+                    mejor.pasos.size()) {
 
-                    mejor = posicion;
+                    mejor = plan;
                 }
             }
         }
@@ -404,155 +367,308 @@ public class Tablero {
     }
 
     // =========================================================
-    // POSICIÓN DESDE LA QUE SE PUEDE EMPUJAR
+    // BFS ROBOT + CAJA
     // =========================================================
 
-    private Posicion obtenerPosicionEmpuje(
-        Posicion caja) {
+    private Plan buscarPlanParaCaja(
+            Posicion robotInicial,
+            Posicion cajaInicial) {
 
-    List<Posicion> candidatos =
-            new ArrayList<>();
+        EstadoInicial estadoInicial =
+                new EstadoInicial(
+                        robotInicial,
+                        cajaInicial
+                );
 
-    /*
-     * Posición necesaria para empujar hacia abajo.
-     */
-    if (caja.getFila() > 0 &&
-        caja.getFila() < 5) {
+        Queue<Estado> cola =
+                new ArrayDeque<>();
 
-        candidatos.add(
-                new Posicion(
-                        caja.getFila() - 1,
-                        caja.getColumna()
-                )
-        );
-    }
+        Map<Estado, EstadoAnterior> anteriores =
+                new HashMap<>();
 
-    /*
-     * Posición necesaria para empujar hacia la derecha.
-     */
-    if (caja.getColumna() > 0 &&
-        caja.getColumna() < 5) {
+        Set<Estado> visitados =
+                new HashSet<>();
 
-        candidatos.add(
-                new Posicion(
-                        caja.getFila(),
-                        caja.getColumna() - 1
-                )
-        );
-    }
+        Estado inicio =
+                new Estado(
+                        robotInicial,
+                        cajaInicial
+                );
 
-    /*
-     * Buscamos una posición válida.
-     */
-    for (Posicion candidato : candidatos) {
+        cola.add(inicio);
 
-        if (casillaLibreParaRobot(candidato)) {
-            return candidato;
-        }
-    }
+        visitados.add(inicio);
 
-    return null;
-}
+        Estado estadoFinal = null;
 
-    // =========================================================
-    // EMPUJAR
-    // =========================================================
+        while (!cola.isEmpty()) {
 
-    private boolean puedeEmpujar(
-            Robot robot,
-            Posicion caja) {
-
-        Posicion robotPos =
-                robot.getPosicion();
-
-        /*
-         * Empujar hacia la derecha.
-         */
-        if (robotPos.getFila() ==
-                caja.getFila()
-                &&
-            robotPos.getColumna() ==
-                caja.getColumna() - 1) {
-
-            Posicion destino =
-                    new Posicion(
-                            caja.getFila(),
-                            caja.getColumna() + 1
-                    );
-
-            return dentroDelTablero(destino)
-                    &&
-                    casillaLibreParaRobot(destino);
-        }
-
-        /*
-         * Empujar hacia abajo.
-         */
-        if (robotPos.getColumna() ==
-                caja.getColumna()
-                &&
-            robotPos.getFila() ==
-                caja.getFila() - 1) {
-
-            Posicion destino =
-                    new Posicion(
-                            caja.getFila() + 1,
-                            caja.getColumna()
-                    );
+            Estado actual =
+                    cola.poll();
 
             /*
-             * (5,5) es especial: es la salida.
-             * No se considera una casilla normal.
+             * Si la caja llegó a la salida,
+             * encontramos una solución.
              */
-            if (destino.equals(SALIDA)) {
-                return true;
+            if (actual.caja.equals(SALIDA)) {
+
+                estadoFinal = actual;
+                break;
             }
 
-            return dentroDelTablero(destino)
-                    &&
-                    casillaLibreParaRobot(destino);
+            for (
+                    Direccion direccion :
+                    Direccion.values()
+            ) {
+
+                Posicion siguienteRobot =
+                        sumar(
+                                actual.robot,
+                                direccion
+                        );
+
+                if (!dentroDelTablero(
+                        siguienteRobot)) {
+
+                    continue;
+                }
+
+                /*
+                 * =================================================
+                 * CASO 1: movimiento normal del robot
+                 * =================================================
+                 */
+
+                if (!siguienteRobot.equals(
+                        actual.caja)) {
+
+                    if (!puedeRobotOcupar(
+                            siguienteRobot,
+                            actual.caja
+                    )) {
+
+                        continue;
+                    }
+
+                    Estado siguiente =
+                            new Estado(
+                                    siguienteRobot,
+                                    actual.caja
+                            );
+
+                    if (visitados.add(siguiente)) {
+
+                        anteriores.put(
+                                siguiente,
+                                new EstadoAnterior(
+                                        actual,
+                                        new Paso(
+                                                TipoPaso.MOVER,
+                                                siguienteRobot,
+                                                null,
+                                                null
+                                        )
+                                )
+                        );
+
+                        cola.add(siguiente);
+                    }
+
+                    continue;
+                }
+
+                /*
+                 * =================================================
+                 * CASO 2: el robot está frente a la caja
+                 * y quiere empujarla.
+                 * =================================================
+                 */
+
+                Posicion destinoCaja =
+                        sumar(
+                                actual.caja,
+                                direccion
+                        );
+
+                if (!puedeEmpujar(
+                        actual.caja,
+                        destinoCaja
+                )) {
+
+                    continue;
+                }
+
+                /*
+                 * El robot ocupa la posición que tenía la caja.
+                 */
+                Estado siguiente =
+                        new Estado(
+                                actual.caja,
+                                destinoCaja
+                        );
+
+                if (visitados.add(siguiente)) {
+
+                    anteriores.put(
+                            siguiente,
+                            new EstadoAnterior(
+                                    actual,
+                                    new Paso(
+                                            TipoPaso.EMPUJAR,
+                                            actual.caja,
+                                            actual.caja,
+                                            destinoCaja
+                                    )
+                            )
+                    );
+
+                    cola.add(siguiente);
+                }
+            }
         }
+
+        if (estadoFinal == null) {
+            return null;
+        }
+
+        List<Paso> pasos =
+                new ArrayList<>();
+
+        Estado actual =
+                estadoFinal;
+
+        while (!actual.equals(inicio)) {
+
+            EstadoAnterior anterior =
+                    anteriores.get(actual);
+
+            if (anterior == null) {
+                return null;
+            }
+
+            pasos.add(
+                    anterior.paso
+            );
+
+            actual =
+                    anterior.estadoAnterior;
+        }
+
+        Collections.reverse(pasos);
+
+        return new Plan(
+                cajaInicial,
+                pasos
+        );
+    }
+
+    // =========================================================
+    // EJECUTAR MOVIMIENTO
+    // =========================================================
+
+    private void ejecutarMovimiento(
+            Robot robot,
+            Posicion destino) {
+
+        robot.setPosicion(destino);
+
+        robot.consumirBateria();
+
+        registrar(
+                robot.getId(),
+                "MOVER",
+                destino +
+                " -> Batería: " +
+                robot.getBateria()
+        );
+    }
+
+    // =========================================================
+    // EJECUTAR EMPUJE
+    // =========================================================
+private boolean ejecutarEmpuje(
+        Robot robot,
+        Posicion caja,
+        Posicion destinoCaja) {
+
+    Posicion posicionNecesaria =
+            obtenerPosicionRobotParaEmpujar(
+                    caja,
+                    destinoCaja
+            );
+
+    if (!robot.getPosicion().equals(
+            posicionNecesaria
+    )) {
 
         return false;
     }
 
-    private void empujarCaja(
+    return realizarEmpuje(
+            robot,
+            caja,
+            destinoCaja
+    );
+}
+
+    /*
+     * Este método realiza el empuje real.
+     *
+     * La posición del robot debe ser la casilla desde
+     * donde empuja, es decir, una casilla adyacente
+     * a la caja.
+     */
+    private boolean realizarEmpuje(
             Robot robot,
-            Posicion caja) {
+            Posicion caja,
+            Posicion destinoCaja) {
 
-        Posicion destino;
+        if (!dentroDelTablero(destinoCaja)) {
+            return false;
+        }
 
-        /*
-         * Derecha.
-         */
-        if (robot.getPosicion().getFila() ==
-                caja.getFila()
-                &&
-            robot.getPosicion().getColumna() ==
-                caja.getColumna() - 1) {
-
-            destino =
-                    new Posicion(
-                            caja.getFila(),
-                            caja.getColumna() + 1
-                    );
-
-        /*
-         * Abajo.
-         */
-        } else {
-
-            destino =
-                    new Posicion(
-                            caja.getFila() + 1,
-                            caja.getColumna()
-                    );
+        if (!puedeEmpujar(
+                caja,
+                destinoCaja
+        )) {
+            return false;
         }
 
         /*
-         * Si llega a (5,5), se extrae.
+         * El robot tiene que estar detrás de la caja.
          */
-        if (destino.equals(SALIDA)) {
+        int df =
+                caja.getFila()
+                -
+                robot.getPosicion().getFila();
+
+        int dc =
+                caja.getColumna()
+                -
+                robot.getPosicion().getColumna();
+
+        int destinoDf =
+                destinoCaja.getFila()
+                -
+                caja.getFila();
+
+        int destinoDc =
+                destinoCaja.getColumna()
+                -
+                caja.getColumna();
+
+        if (df != destinoDf
+                ||
+            dc != destinoDc) {
+
+            return false;
+        }
+
+        /*
+         * La salida (5,5) no se almacena como caja:
+         * al llegar allí la caja se extrae.
+         */
+        if (destinoCaja.equals(SALIDA)) {
 
             matriz[caja.getFila()]
                   [caja.getColumna()] =
@@ -570,19 +686,16 @@ public class Tablero {
                     "-> (5,5)"
             );
 
-            /*
-             * Acabamos de liberar una casilla.
-             */
             espacioDisponible.signalAll();
 
-            return;
+            return true;
         }
 
         /*
          * Empuje normal.
          */
-        matriz[destino.getFila()]
-              [destino.getColumna()] =
+        matriz[destinoCaja.getFila()]
+              [destinoCaja.getColumna()] =
                 TipoCaja.OBJETIVO;
 
         matriz[caja.getFila()]
@@ -596,101 +709,59 @@ public class Tablero {
         registrar(
                 robot.getId(),
                 "EMPUJAR_OBJETIVO",
-                caja + " -> " + destino +
+                caja +
+                " -> " +
+                destinoCaja +
                 " -> Batería: " +
                 robot.getBateria()
         );
+
+        return true;
     }
 
     // =========================================================
-    // CAMINO BFS
+    // VALIDAR Y EJECUTAR PASO DE EMPUJE
     // =========================================================
 
-    private List<Posicion> buscarCamino(
-            Posicion inicio,
-            Posicion destino) {
+    private boolean puedeEjecutarEmpuje(
+            Robot robot,
+            Posicion caja,
+            Posicion destinoCaja) {
 
-        Queue<Posicion> cola =
-                new LinkedList<>();
+        if (!robot.getPosicion().equals(
+                obtenerPosicionRobotParaEmpujar(
+                        caja,
+                        destinoCaja
+                )
+        )) {
 
-        Map<Posicion, Posicion> padre =
-                new HashMap<>();
-
-        Set<Posicion> visitados =
-                new HashSet<>();
-
-        cola.add(inicio);
-
-        visitados.add(inicio);
-
-        while (!cola.isEmpty()) {
-
-            Posicion actual =
-                    cola.poll();
-
-            if (actual.equals(destino)) {
-
-                return reconstruirCamino(
-                        padre,
-                        inicio,
-                        destino
-                );
-            }
-
-            for (Posicion vecino :
-                    obtenerVecinos(actual)) {
-
-                if (!dentroDelTablero(vecino)) {
-                    continue;
-                }
-
-                if (visitados.contains(vecino)) {
-                    continue;
-                }
-
-                /*
-                 * El destino debe ser libre.
-                 */
-                if (!vecino.equals(destino)
-                        &&
-                    !casillaLibreParaRobot(vecino)) {
-
-                    continue;
-                }
-
-                visitados.add(vecino);
-
-                padre.put(vecino, actual);
-
-                cola.add(vecino);
-            }
+            return false;
         }
 
-        return null;
+        return puedeEmpujar(
+                caja,
+                destinoCaja
+        );
     }
 
-    private List<Posicion> reconstruirCamino(
-            Map<Posicion, Posicion> padre,
-            Posicion inicio,
-            Posicion destino) {
+    private Posicion obtenerPosicionRobotParaEmpujar(
+            Posicion caja,
+            Posicion destinoCaja) {
 
-        LinkedList<Posicion> camino =
-                new LinkedList<>();
+        int df =
+                destinoCaja.getFila()
+                -
+                caja.getFila();
 
-        Posicion actual = destino;
+        int dc =
+                destinoCaja.getColumna()
+                -
+                caja.getColumna();
 
-        while (actual != null) {
-
-            camino.addFirst(actual);
-
-            if (actual.equals(inicio)) {
-                break;
-            }
-
-            actual = padre.get(actual);
-        }
-
-        return camino;
+        return new Posicion(
+                caja.getFila() - df,
+                caja.getColumna() - dc
+        );
     }
 
     // =========================================================
@@ -707,52 +778,46 @@ public class Tablero {
 
         Collections.shuffle(vecinos);
 
-        for (Posicion posicion : vecinos) {
+        for (Posicion vecino : vecinos) {
 
-            if (casillaLibreParaRobot(posicion)) {
-                return posicion;
+            if (puedeRobotOcupar(
+                    vecino,
+                    null
+            )) {
+
+                return vecino;
             }
         }
 
         return null;
     }
 
-    private void moverRobot(
-            Robot robot,
-            Posicion destino) {
-
-        robot.setPosicion(destino);
-    }
-
     // =========================================================
-    // CASILLAS Y VECINOS
+    // VALIDACIONES DEL TABLERO
     // =========================================================
 
-    private List<Posicion> obtenerVecinos(
-            Posicion posicion) {
-
-        List<Posicion> vecinos =
-                new ArrayList<>();
-
-        vecinos.add(posicion.arriba());
-        vecinos.add(posicion.abajo());
-        vecinos.add(posicion.izquierda());
-        vecinos.add(posicion.derecha());
-
-        return vecinos;
-    }
-
-    private boolean casillaLibreParaRobot(
-            Posicion posicion) {
+    private boolean puedeRobotOcupar(
+            Posicion posicion,
+            Posicion cajaMovil) {
 
         if (!dentroDelTablero(posicion)) {
             return false;
         }
 
         /*
-         * La salida no se usa como casilla normal.
+         * La salida está reservada para la caja.
          */
         if (posicion.equals(SALIDA)) {
+            return false;
+        }
+
+        /*
+         * No puede entrar en la caja que está moviendo.
+         */
+        if (cajaMovil != null
+                &&
+            posicion.equals(cajaMovil)) {
+
             return false;
         }
 
@@ -764,6 +829,59 @@ public class Tablero {
         }
 
         return !hayRobotEn(posicion);
+    }
+
+    private boolean puedeEmpujar(
+            Posicion caja,
+            Posicion destino) {
+
+        if (!dentroDelTablero(destino)) {
+            return false;
+        }
+
+        /*
+         * La caja puede entrar en la salida.
+         */
+        if (destino.equals(SALIDA)) {
+            return true;
+        }
+
+        /*
+         * Para un empuje normal, la casilla destino
+         * debe estar completamente libre.
+         */
+        if (matriz[destino.getFila()]
+                  [destino.getColumna()]
+                != TipoCaja.VACIA) {
+
+            return false;
+        }
+
+        /*
+         * Tampoco puede empujarse una caja encima
+         * de otro robot.
+         */
+        if (hayRobotEn(destino)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private boolean casillaLibreSinRobots(
+            Posicion posicion) {
+
+        if (!dentroDelTablero(posicion)) {
+            return false;
+        }
+
+        if (posicion.equals(SALIDA)) {
+            return false;
+        }
+
+        return matriz[posicion.getFila()]
+                    [posicion.getColumna()]
+                == TipoCaja.VACIA;
     }
 
     private boolean hayRobotEn(
@@ -819,29 +937,6 @@ public class Tablero {
         return true;
     }
 
-    public Posicion obtenerPosicionLibreAleatoria(
-            Random random) {
-
-        lock.lock();
-
-        try {
-
-            List<Posicion> libres =
-                    obtenerCasillasLibres();
-
-            if (libres.isEmpty()) {
-                return null;
-            }
-
-            return libres.get(
-                    random.nextInt(libres.size())
-            );
-
-        } finally {
-            lock.unlock();
-        }
-    }
-
     private List<Posicion> obtenerCasillasLibres() {
 
         List<Posicion> libres =
@@ -871,8 +966,75 @@ public class Tablero {
         return libres;
     }
 
+    public Posicion obtenerPosicionLibreAleatoria(
+            Random random) {
+
+        lock.lock();
+
+        try {
+
+            List<Posicion> libres =
+                    obtenerCasillasLibres();
+
+            if (libres.isEmpty()) {
+                return null;
+            }
+
+            return libres.get(
+                    random.nextInt(
+                            libres.size()
+                    )
+            );
+
+        } finally {
+
+            lock.unlock();
+        }
+    }
+
     // =========================================================
-    // TRAZAS
+    // VECINOS
+    // =========================================================
+
+    private List<Posicion> obtenerVecinos(
+            Posicion posicion) {
+
+        List<Posicion> vecinos =
+                new ArrayList<>();
+
+        vecinos.add(posicion.arriba());
+        vecinos.add(posicion.abajo());
+        vecinos.add(posicion.izquierda());
+        vecinos.add(posicion.derecha());
+
+        return vecinos;
+    }
+
+    private Posicion sumar(
+            Posicion posicion,
+            Direccion direccion) {
+
+        switch (direccion) {
+
+            case ARRIBA:
+                return posicion.arriba();
+
+            case ABAJO:
+                return posicion.abajo();
+
+            case IZQUIERDA:
+                return posicion.izquierda();
+
+            case DERECHA:
+                return posicion.derecha();
+
+            default:
+                throw new IllegalStateException();
+        }
+    }
+
+    // =========================================================
+    // REGISTRO
     // =========================================================
 
     private void registrar(
@@ -882,7 +1044,10 @@ public class Tablero {
 
         System.out.println(
                 "[Tick-" +
-                Main.siguienteTick() +
+                String.format(
+                        "%02d",
+                        Main.siguienteTick()
+                ) +
                 "] [" +
                 hilo +
                 "] " +
@@ -892,32 +1057,44 @@ public class Tablero {
         );
     }
 
-    // =========================================================
-    // REPORTE FINAL
-    // =========================================================
-
     public void registrarInicioRobot(
-        Robot robot) {
+            Robot robot) {
 
-    registrar(
-            robot.getId(),
-            "INICIO",
-            "Posición inicial " +
-            robot.getPosicion() +
-            " -> Batería: " +
-            robot.getBateria()
-    );
-}
-    public void registrarRobotFinalizado() {
+        registrar(
+                robot.getId(),
+                "INICIO",
+                "Posición inicial " +
+                robot.getPosicion() +
+                " -> Batería: " +
+                robot.getBateria()
+        );
+    }
+
+    public void registrarRobotFinalizado(
+            Robot robot) {
 
         lock.lock();
 
         try {
+
             robotsFinalizados++;
+
+            registrar(
+                    robot.getId(),
+                    "BATERIA_AGOTADA",
+                    "-> Posición final " +
+                    robot.getPosicion()
+            );
+
         } finally {
+
             lock.unlock();
         }
     }
+
+    // =========================================================
+    // REPORTE FINAL
+    // =========================================================
 
     public void imprimirReporteFinal() {
 
@@ -991,6 +1168,7 @@ public class Tablero {
             }
 
         } finally {
+
             lock.unlock();
         }
     }
@@ -1008,5 +1186,130 @@ public class Tablero {
         }
 
         return null;
+    }
+
+    // =========================================================
+    // CLASES INTERNAS PARA BFS
+    // =========================================================
+
+    private enum Direccion {
+        ARRIBA,
+        ABAJO,
+        IZQUIERDA,
+        DERECHA
+    }
+
+    private enum TipoPaso {
+        MOVER,
+        EMPUJAR
+    }
+
+    private static class Paso {
+
+        private final TipoPaso tipo;
+        private final Posicion destinoRobot;
+        private final Posicion posicionCaja;
+        private final Posicion destinoCaja;
+
+        public Paso(
+                TipoPaso tipo,
+                Posicion destinoRobot,
+                Posicion posicionCaja,
+                Posicion destinoCaja) {
+
+            this.tipo = tipo;
+            this.destinoRobot = destinoRobot;
+            this.posicionCaja = posicionCaja;
+            this.destinoCaja = destinoCaja;
+        }
+    }
+
+    private static class Plan {
+
+        private final Posicion caja;
+        private final List<Paso> pasos;
+
+        public Plan(
+                Posicion caja,
+                List<Paso> pasos) {
+
+            this.caja = caja;
+            this.pasos = pasos;
+        }
+    }
+
+    private static class Estado {
+
+        private final Posicion robot;
+        private final Posicion caja;
+
+        public Estado(
+                Posicion robot,
+                Posicion caja) {
+
+            this.robot = robot;
+            this.caja = caja;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+
+            if (this == obj) {
+                return true;
+            }
+
+            if (!(obj instanceof Estado)) {
+                return false;
+            }
+
+            Estado otro =
+                    (Estado) obj;
+
+            return robot.equals(otro.robot)
+                    &&
+                   caja.equals(otro.caja);
+        }
+
+        @Override
+        public int hashCode() {
+
+            return robot.hashCode() * 31
+                    +
+                   caja.hashCode();
+        }
+    }
+
+    private static class EstadoAnterior {
+
+        private final Estado estadoAnterior;
+        private final Paso paso;
+
+        public EstadoAnterior(
+                Estado estadoAnterior,
+                Paso paso) {
+
+            this.estadoAnterior =
+                    estadoAnterior;
+
+            this.paso = paso;
+        }
+    }
+
+    /*
+     * Clase auxiliar solamente para documentar
+     * claramente el estado inicial.
+     */
+    private static class EstadoInicial {
+
+        private final Posicion robot;
+        private final Posicion caja;
+
+        public EstadoInicial(
+                Posicion robot,
+                Posicion caja) {
+
+            this.robot = robot;
+            this.caja = caja;
+        }
     }
 }

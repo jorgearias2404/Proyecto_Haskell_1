@@ -30,12 +30,6 @@ public class Productor implements Runnable {
 
             TipoCaja tipo;
 
-            /*
-             * Política de generación:
-             *
-             * 70% Caja Objetivo
-             * 30% Caja de Bloqueo
-             */
             if (random.nextDouble()
                     < PROBABILIDAD_OBJETIVO) {
 
@@ -46,21 +40,21 @@ public class Productor implements Runnable {
                 tipo = TipoCaja.BLOQUEO;
             }
 
-            boolean insertado =
+            boolean insertada =
                     tablero.insertarCaja(
                             id,
                             tipo,
                             random
                     );
 
-            if (!insertado) {
+            if (!insertada) {
                 break;
             }
 
             try {
 
                 Thread.sleep(
-                        100 + random.nextInt(150)
+                        120 + random.nextInt(180)
                 );
 
             } catch (InterruptedException e) {

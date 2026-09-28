@@ -1,0 +1,4 @@
+Cajas_Objetivo_Iniciales, 3
+Cajas_Bloqueo_Iniciales, 5
+Robots, 4, 15
+Productores, 2

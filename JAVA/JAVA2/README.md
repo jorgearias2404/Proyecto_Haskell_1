@@ -33,31 +33,31 @@ La planificación se vuelve a calcular en cada turno, pero no asegura que siempr
 
 ## Requisitos, compilación y ejecución
 
-Se necesita un JDK de Java 11 o posterior. Para compilar con el Makefile también se necesita GNU Make instalado y disponible en el `PATH`. Abre una terminal en la carpeta `JAVA2` y ejecuta:
+Se necesita un JDK de Java 11 o posterior. Para compilar con el Makefile también se necesita GNU Make instalado y disponible en el `PATH`. Abre una terminal en la carpeta `30136615-Perez-30245916-Arias-Proyecto_3` y ejecuta:
 
 ```sh
 make
 ```
 
-Este comando compila todos los archivos `.java` de la carpeta. También puedes usar `make compile`. Si no tienes Make instalado, compila directamente con el JDK:
+Este comando compila todos los archivos `.java` de la carpeta. También se puede usar `make compile`. Si no se tiene Make instalado, compila directamente con el JDK:
 
 ```sh
 javac *.java
 ```
 
-Después de compilar, inicia el programa pasando como argumento el archivo de configuración:
+Después de compilar, se puede iniciar el programa pasando como argumento el archivo de configuración:
 
 ```sh
 java Main entrada.txt
 ```
 
-También puedes indicar la ruta a otro archivo, por ejemplo:
+También se puede indicar la ruta a otro archivo, por ejemplo:
 
 ```sh
 java Main casos/caso_sin_cajas.txt
 ```
 
-Los comandos `javac` y `java` están disponibles en Windows, Linux y macOS al instalar un JDK y añadirlo al `PATH`. `make` funciona en esos sistemas si GNU Make está instalado. Cada vez que cambies el código, vuelve a compilar antes de iniciar el programa.
+Los comandos `javac` y `java` están disponibles en Windows, Linux y macOS al instalar un JDK y añadirlo al `PATH`. `make` 
 
 ## Formato del archivo de entrada
 
@@ -81,11 +81,9 @@ Debe haber al menos un robot y un productor, y la batería debe ser mayor que ce
 
 ## Casos de prueba manuales
 
-Guarda cada configuración de ejemplo en un archivo `.txt` dentro de `JAVA2` y ejecútalo con `java Main nombre_del_archivo.txt`. No hay pruebas automatizadas configuradas en esta carpeta; estos casos sirven para comprobar manualmente los escenarios principales.
+1. **Ejecución normal:** se ejecuta `java Main entrada.txt`. Deben aparecer acciones con ticks, y al terminar, el reporte final y el tablero. La cantidad de cajas extraídas puede cambiar entre ejecuciones.
 
-1. **Ejecución normal:** ejecuta `java Main entrada.txt`. Deben aparecer acciones con ticks, y al terminar, el reporte final y el tablero. La cantidad de cajas extraídas puede cambiar entre ejecuciones.
-
-2. **Inicio sin cajas:** guarda lo siguiente como `caso_sin_cajas.txt` y ejecútalo. Comprueba que se inicia con el tablero sin cajas y que los productores empiezan a introducirlas.
+2. **Inicio sin cajas:**  Comprueba que se inicia con el tablero sin cajas y que los productores empiezan a introducirlas.
 
    ```text
    Cajas_Objetivo_Iniciales, 0
@@ -94,7 +92,7 @@ Guarda cada configuración de ejemplo en un archivo `.txt` dentro de `JAVA2` y e
    Productores, 1
    ```
 
-3. **Varios hilos:** guarda la configuración como `caso_concurrencia.txt` y ejecútala. En la consola deben intercalarse acciones de varios robots y productores; el resultado concreto depende del orden en que se ejecuten los hilos.
+3. **Varios hilos:** En la consola deben intercalarse acciones de varios robots y productores; el resultado concreto depende del orden en que se ejecuten los hilos.
 
    ```text
    Cajas_Objetivo_Iniciales, 2
@@ -103,7 +101,7 @@ Guarda cada configuración de ejemplo en un archivo `.txt` dentro de `JAVA2` y e
    Productores, 2
    ```
 
-4. **Cantidad de robots inválida:** guarda este ejemplo como `caso_robot_invalido.txt`. El programa debe informar que debe existir al menos un robot y terminar sin iniciar la simulación.
+4. **Cantidad de robots inválida:** . El programa debe informar que debe existir al menos un robot y terminar sin iniciar la simulación.
 
    ```text
    Cajas_Objetivo_Iniciales, 0
@@ -112,7 +110,7 @@ Guarda cada configuración de ejemplo en un archivo `.txt` dentro de `JAVA2` y e
    Productores, 1
    ```
 
-5. **Demasiadas entidades iniciales:** guarda este ejemplo como `caso_exceso_entidades.txt`. Como la suma es mayor que 35, el programa debe informar del error de configuración y no iniciar los hilos.
+5. **Demasiadas entidades iniciales:**. Como la suma es mayor que 35, el programa debe informar del error de configuración y no iniciar los hilos.
 
    ```text
    Cajas_Objetivo_Iniciales, 20
@@ -127,9 +125,9 @@ Los casos válidos incluyen decisiones aleatorias: las posiciones iniciales, las
 
 Para implementar la concurrencia, hicimos que cada robot y cada productor trabajara en su propio hilo. `Main` crea esos hilos, inicia primero los productores y después los robots. Así, ambos tipos de tarea pueden avanzar al mismo tiempo.
 
-El tablero es el recurso que comparten todos esos hilos. Para evitar que dos acciones cambien el tablero a la vez y dejen posiciones inconsistentes, protegí sus operaciones con un `ReentrantLock` justo. Por ejemplo, antes de insertar una caja o ejecutar un turno de un robot, el hilo toma el bloqueo; al terminar, lo libera. De esta manera, aunque haya varios hilos activos, cada operación sobre el estado del tablero se realiza de forma segura.
+El tablero es el recurso que comparten todos esos hilos. Para evitar que dos acciones cambien el tablero a la vez y dejen posiciones inconsistentes, protegimos sus operaciones con un `ReentrantLock` justo. Por ejemplo, antes de insertar una caja o ejecutar un turno de un robot, el hilo toma el bloqueo; al terminar, lo libera. De esta manera, aunque haya varios hilos activos, cada operación sobre el estado del tablero se realiza de forma segura.
 
-También agregué una `Condition` llamada `espacioDisponible`. Si un productor encuentra el tablero lleno, espera en esa condición en vez de seguir intentando insertar cajas. Cuando una caja objetivo llega a la salida y se extrae, queda una casilla libre y el tablero avisa a los productores para que vuelvan a comprobar si pueden insertar. Si la simulación termina mientras alguno está esperando, `Main` lo interrumpe para que pueda salir y finalizar.
+También agregamos una `Condition` llamada `espacioDisponible`. Si un productor encuentra el tablero lleno, espera en esa condición en vez de seguir intentando insertar cajas. Cuando una caja objetivo llega a la salida y se extrae, queda una casilla libre y el tablero avisa a los productores para que vuelvan a comprobar si pueden insertar. Si la simulación termina mientras alguno está esperando, `Main` lo interrumpe para que pueda salir y finalizar.
 
 Los hilos de robot consumen batería al moverse o empujar. Cuando ya no tienen batería, terminan su tarea y avisan a `Main`. Cuando han terminado todos los robots, `Main` marca la simulación como inactiva, detiene y espera a los productores y, por último, pide al tablero que imprima el reporte final. El contador global de ticks y la cantidad de robots activos usan variables atómicas para actualizar esos valores compartidos con seguridad.
 

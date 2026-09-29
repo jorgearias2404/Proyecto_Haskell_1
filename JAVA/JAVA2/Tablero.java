@@ -24,9 +24,6 @@ public class Tablero {
     private final List<Robot> robots =
             new ArrayList<>();
 
-    /*
-     * Recurso compartido.
-     */
     private final ReentrantLock lock =
             new ReentrantLock(true);
 
@@ -53,10 +50,6 @@ public class Tablero {
             }
         }
     }
-
-    // =========================================================
-    // INICIALIZACIÓN
-    // =========================================================
 
     public void colocarCajaInicial(
             Posicion posicion,
@@ -148,10 +141,6 @@ public class Tablero {
         }
     }
 
-    // =========================================================
-    // PRODUCTORES
-    // =========================================================
-
     public boolean insertarCaja(
             String productorId,
             TipoCaja tipo,
@@ -234,10 +223,6 @@ public class Tablero {
         }
     }
 
-    // =========================================================
-    // TURNO DEL ROBOT
-    // =========================================================
-
     public boolean ejecutarTurnoRobot(
             Robot robot) {
 
@@ -249,9 +234,6 @@ public class Tablero {
                 return false;
             }
 
-            /*
-             * Primero buscamos el mejor plan disponible.
-             */
             Plan mejorPlan =
                     buscarMejorPlan(robot);
 
@@ -316,10 +298,6 @@ public class Tablero {
         }
     }
 
-    // =========================================================
-    // BUSCAR EL MEJOR PLAN
-    // =========================================================
-
     private Plan buscarMejorPlan(
             Robot robot) {
 
@@ -361,10 +339,6 @@ public class Tablero {
 
         return mejor;
     }
-
-    // =========================================================
-    // BFS ROBOT + CAJA
-    // =========================================================
 
     private Plan buscarPlanParaCaja(
             Posicion robotInicial,
@@ -429,11 +403,7 @@ public class Tablero {
                     continue;
                 }
 
-                /*
-                 * =================================================
-                 * CASO 1: movimiento normal del robot
-                 * =================================================
-                 */
+                // Movimiento normal del robot.
 
                 if (!siguienteRobot.equals(
                         actual.caja)) {
@@ -473,12 +443,7 @@ public class Tablero {
                     continue;
                 }
 
-                /*
-                 * =================================================
-                 * CASO 2: el robot está frente a la caja
-                 * y quiere empujarla.
-                 * =================================================
-                 */
+                // El robot está frente a la caja y puede intentar empujarla.
 
                 Posicion destinoCaja =
                         sumar(
@@ -558,10 +523,6 @@ public class Tablero {
         );
     }
 
-    // =========================================================
-    // EJECUTAR MOVIMIENTO
-    // =========================================================
-
     private void ejecutarMovimiento(
             Robot robot,
             Posicion destino) {
@@ -579,9 +540,6 @@ public class Tablero {
         );
     }
 
-    // =========================================================
-    // EJECUTAR EMPUJE
-    // =========================================================
 private boolean ejecutarEmpuje(
         Robot robot,
         Posicion caja,
@@ -715,10 +673,6 @@ private boolean ejecutarEmpuje(
         return true;
     }
 
-    // =========================================================
-    // VALIDAR Y EJECUTAR PASO DE EMPUJE
-    // =========================================================
-
     private boolean puedeEjecutarEmpuje(
             Robot robot,
             Posicion caja,
@@ -760,10 +714,6 @@ private boolean ejecutarEmpuje(
         );
     }
 
-    // =========================================================
-    // MOVIMIENTO DE EXPLORACIÓN
-    // =========================================================
-
     private Posicion buscarMovimientoExploracion(
             Robot robot) {
 
@@ -787,10 +737,6 @@ private boolean ejecutarEmpuje(
 
         return null;
     }
-
-    // =========================================================
-    // VALIDACIONES DEL TABLERO
-    // =========================================================
 
     private boolean puedeRobotOcupar(
             Posicion posicion,

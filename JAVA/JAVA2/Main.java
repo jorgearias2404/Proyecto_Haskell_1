@@ -66,9 +66,6 @@ public class Main {
             List<Thread> hilosRobots =
                     new ArrayList<>();
 
-            /*
-             * Crear productores.
-             */
             for (
                     int i = 1;
                     i <= configuracion
@@ -88,9 +85,6 @@ public class Main {
                 hilosProductores.add(hilo);
             }
 
-            /*
-             * Crear robots.
-             */
             for (Robot robot : robots) {
 
                 Thread hilo =
@@ -105,61 +99,38 @@ public class Main {
                 hilosRobots.add(hilo);
             }
 
-            /*
-             * iniciamos productores.
-             */
             for (Thread hilo :
                     hilosProductores) {
 
                 hilo.start();
             }
 
-            /*
-             *  iniciamos robots.
-             */
             for (Thread hilo :
                     hilosRobots) {
 
                 hilo.start();
             }
 
-            /*
-             * Esperamos a todos los robots.
-             */
             for (Thread hilo :
                     hilosRobots) {
 
                 hilo.join();
             }
 
-            /*
-             * Ya no quedan consumidores.
-             * Detenemos productores.
-             */
             ACTIVA.set(false);
 
-            /*
-             * Despertar productores que puedan estar
-             * esperando en Condition.await().
-             */
             for (Thread hilo :
                     hilosProductores) {
 
                 hilo.interrupt();
             }
 
-            /*
-             * Esperamos a los productores.
-             */
             for (Thread hilo :
                     hilosProductores) {
 
                 hilo.join();
             }
 
-            /*
-             * Reporte final.
-             */
             tablero.imprimirReporteFinal();
 
         } catch (IOException e) {
@@ -192,10 +163,6 @@ public class Main {
             );
         }
     }
-
-    // =========================================================
-    // LECTURA
-    // =========================================================
 
     private static Configuracion leerArchivo(
             String nombreArchivo)
@@ -319,10 +286,6 @@ public class Main {
         return configuracion;
     }
 
-    // =========================================================
-    // VALIDACIÓN
-    // =========================================================
-
     private static void validarConfiguracion(
             Configuracion c) {
 
@@ -380,10 +343,6 @@ public class Main {
         }
     }
 
-    // =========================================================
-    // CAJAS INICIALES
-    // =========================================================
-
     private static void inicializarCajas(
             Tablero tablero,
             Configuracion c) {
@@ -421,9 +380,7 @@ public class Main {
 
         int indice = 0;
 
-        /*
-         * Cajas objetivo.
-         */
+        // Cajas objetivo.
         for (
                 int i = 0;
                 i < c.getCajasObjetivoIniciales();
@@ -436,9 +393,7 @@ public class Main {
             );
         }
 
-        /*
-         * Cajas bloqueo.
-         */
+        // Cajas de bloqueo.
         for (
                 int i = 0;
                 i < c.getCajasBloqueoIniciales();
@@ -451,10 +406,6 @@ public class Main {
             );
         }
     }
-
-    // =========================================================
-    // ROBOTS
-    // =========================================================
 
     private static List<Robot> crearRobots(
             Tablero tablero,
@@ -500,10 +451,6 @@ public class Main {
 
         return robots;
     }
-
-    // =========================================================
-    // ESTADO DE LA SIMULACIÓN
-    // =========================================================
 
     public static int siguienteTick() {
         return TICK.incrementAndGet();

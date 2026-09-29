@@ -211,9 +211,11 @@ saturación otra vez.
   otros robots, ni empujar dos cajas a la vez).
 - El robot elige, en cada turno, la dirección de empuje que más reduzca
   la distancia (Manhattan) de la caja hacia la meta (5,5); si esa
-  dirección no es físicamente posible (por ejemplo, la caja está pegada
-  a un borde del tablero), se evalúan las demás direcciones en orden de
-  cuánto acercan la caja a la meta.
+  dirección no es físicamente posible (fuera de los límites del
+  tablero) **o** su casilla destino está ocupada en ese instante (por
+  otra caja o robot), se evalúan las demás direcciones válidas en orden
+  de cuánto acercan la caja a la meta, en vez de quedar esperando
+  indefinidamente una única dirección.
 - Cuando la caja llega exactamente a (5,5) se considera **extraída**: se
   retira del tablero, se contabiliza y el robot queda ocupando esa
   casilla.

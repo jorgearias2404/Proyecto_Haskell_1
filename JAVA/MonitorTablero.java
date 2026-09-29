@@ -199,27 +199,34 @@ public class MonitorTablero {
             reservados.add(clave(objetivo));
         }
 
-        int[][] empuje = calcularEmpuje(objetivo);
-        if (empuje == null) {
+        // Se calculan TODAS las direcciones de empuje físicamente válidas
+        // (dentro del tablero), ordenadas de la que más acerca la caja a
+        // la meta a la que menos. No basta con probar solo la mejor: si su
+        // celda destino está ocupada en este instante, se debe intentar la
+        // siguiente en vez de quedar esperando para siempre esa única
+        // dirección (esto evita que el robot se "quede pegado").
+        List<int[][]> opciones = calcularOpcionesEmpuje(objetivo);
+        if (opciones.isEmpty()) {
             // Caja físicamente inalcanzable hacia la meta (p. ej. quedó
-            // encajada en una esquina): se abandona y se busca otra.
+            // encajada en una esquina, sin ninguna dirección de empuje
+            // válida): se abandona y se busca otra.
             liberarObjetivo(id);
             return ResultadoTurno.SIN_ACCION;
         }
-        int[] from = empuje[0];
-        int[] to = empuje[1];
         int[] pos = posiciones.get(id);
 
-        if (pos[0] == from[0] && pos[1] == from[1]) {
-            // El robot ya está en posición de empuje.
-            if (!estaVacia(to[0], to[1])) {
-                return ResultadoTurno.SIN_ACCION; // destino momentáneamente ocupado
-            }
-            robots[pos[0]][pos[1]] = -1;
-            cajas[objetivo[0]][objetivo[1]] = '.';
-            boolean esMeta = (to[0] == META_FILA && to[1] == META_COL);
+        // 1) Si el robot ya está exactamente en la casilla de empuje de
+        //    alguna de las opciones y esa opción tiene la casilla destino
+        //    libre en este instante, se ejecuta el empuje de inmediato.
+        for (int[][] op : opciones) {
+            int[] from = op[0];
+            int[] to = op[1];
+            if (pos[0] == from[0] && pos[1] == from[1] && estaVacia(to[0], to[1])) {
+                robots[pos[0]][pos[1]] = -1;
+                cajas[objetivo[0]][objetivo[1]] = '.';
+                boolean esMeta = (to[0] == META_FILA && to[1] == META_COL);
 
-            if (esMeta) {
+                if (esMeta) {
                 robots[to[0]][to[1]] = id;
                 posiciones.put(id, to);
                 cajasExtraidas++;
@@ -230,8 +237,11 @@ public class MonitorTablero {
                 return ResultadoTurno.ACTUO;
             } else {
                 cajas[to[0]][to[1]] = 'O';
-                robots[to[0]][to[1]] = id;
-                posiciones.put(id, to);
+
+                // CORRECCIÓN REQUERIDA: El robot avanza a la posición que dejó la caja
+                robots[objetivo[0]][objetivo[1]] = id; 
+                posiciones.put(id, objetivo);
+
                 reservados.remove(clave(objetivo));
                 reservados.add(clave(to));
                 objetivoDeRobot.put(id, to);
@@ -241,20 +251,43 @@ public class MonitorTablero {
                 notifyAll();
                 return ResultadoTurno.ACTUO;
             }
-        } else {
-            int[] siguiente = pasoHacia(pos, from);
-            if (siguiente == null) {
-                return ResultadoTurno.SIN_ACCION; // camino bloqueado momentáneamente
             }
-            robots[pos[0]][pos[1]] = -1;
-            robots[siguiente[0]][siguiente[1]] = id;
-            posiciones.put(id, siguiente);
-            robot.consumirBateria();
-            Logger.log(robot.getNombre(), "MOVER (" + pos[0] + "," + pos[1] + ") -> ("
-                    + siguiente[0] + "," + siguiente[1] + ") | Batería: " + robot.getBateria());
-            notifyAll();
-            return ResultadoTurno.ACTUO;
         }
+
+        // 2) El robot no está aún en ninguna casilla de empuje válida:
+        //    se mueve hacia la casilla "from" de la MEJOR opción cuya
+        //    casilla destino "to" esté libre en este instante (así no
+        //    intenta acercarse a una dirección de empuje que de todas
+        //    formas está bloqueada).
+        int[][] mejorAlcanzable = null;
+        for (int[][] op : opciones) {
+            if (estaVacia(op[1][0], op[1][1])) {
+                mejorAlcanzable = op;
+                break;
+            }
+        }
+        if (mejorAlcanzable == null) {
+            // Las casillas destino de TODAS las direcciones de empuje
+            // están ocupadas en este instante (por ejemplo, por Cajas de
+            // Bloqueo). Se libera la reserva para permitir reevaluar en
+            // el próximo turno (puede que otra caja sí sea alcanzable, o
+            // que esta misma se libere más adelante).
+            liberarObjetivo(id);
+            return ResultadoTurno.SIN_ACCION;
+        }
+        int[] from = mejorAlcanzable[0];
+        int[] siguiente = pasoHacia(pos, from);
+        if (siguiente == null) {
+            return ResultadoTurno.SIN_ACCION; // camino bloqueado momentáneamente
+        }
+        robots[pos[0]][pos[1]] = -1;
+        robots[siguiente[0]][siguiente[1]] = id;
+        posiciones.put(id, siguiente);
+        robot.consumirBateria();
+        Logger.log(robot.getNombre(), "MOVER (" + pos[0] + "," + pos[1] + ") -> ("
+                + siguiente[0] + "," + siguiente[1] + ") | Batería: " + robot.getBateria());
+        notifyAll();
+        return ResultadoTurno.ACTUO;
     }
 
     public synchronized void retirarRobot(RobotCarga robot) {
@@ -342,18 +375,29 @@ public class MonitorTablero {
         int[] pos = posiciones.get(idRobot);
         int[] mejor = null;
         int mejorDist = Integer.MAX_VALUE;
+        int[] mejorComoUltimoRecurso = null; // por si TODAS resultan sin salida
+        int mejorDistUltimoRecurso = Integer.MAX_VALUE;
         for (int i = 0; i < n; i++) {
             for (int j = 0; j < n; j++) {
                 if (cajas[i][j] == 'O' && !reservados.contains(clave(i, j))) {
                     int d = Math.abs(pos[0] - i) + Math.abs(pos[1] - j);
-                    if (d < mejorDist) {
+                    if (d < mejorDistUltimoRecurso) {
+                        mejorDistUltimoRecurso = d;
+                        mejorComoUltimoRecurso = new int[]{i, j};
+                    }
+                    // Se prefieren cajas que SÍ tengan al menos una
+                    // dirección de empuje físicamente posible (evita
+                    // fijarse repetidamente en una caja atrapada en una
+                    // esquina mientras existen otras que sí se pueden
+                    // mover, aunque estén algo más lejos).
+                    if (!calcularOpcionesEmpuje(new int[]{i, j}).isEmpty() && d < mejorDist) {
                         mejorDist = d;
                         mejor = new int[]{i, j};
                     }
                 }
             }
         }
-        return mejor;
+        return (mejor != null) ? mejor : mejorComoUltimoRecurso;
     }
 
     private void liberarObjetivo(int idRobot) {
@@ -362,30 +406,33 @@ public class MonitorTablero {
     }
 
     /**
-     * Calcula, para una caja objetivo dada, desde qué casilla debe
-     * empujarla un robot y a qué casilla se moverá la caja, de modo que
-     * se acerque lo más posible a la meta (5,5). Si la dirección óptima
-     * no es físicamente posible (por ejemplo, la caja está pegada a un
-     * borde), se intenta con las siguientes direcciones en orden de
-     * menor a mayor distancia resultante a la meta. Si ninguna dirección
-     * es válida, la caja quedó atrapada (deadlock físico tipo esquina) y
-     * se retorna null.
+     * Calcula, para una caja objetivo dada, todas las direcciones de
+     * empuje físicamente válidas (dentro de los límites del tablero),
+     * es decir, aquellas donde tanto la casilla desde la que empuja el
+     * robot como la casilla a la que iría la caja existen dentro de la
+     * matriz. Se devuelven ordenadas de la que más acerca la caja a la
+     * meta (5,5) a la que menos, para que el llamador pueda intentar la
+     * mejor primero y, si está ocupada en este instante, recurrir a la
+     * siguiente en vez de quedar esperando indefinidamente una única
+     * dirección. Si la lista resulta vacía, la caja está atrapada sin
+     * ninguna dirección de empuje posible (deadlock físico tipo esquina).
      */
-    private int[][] calcularEmpuje(int[] caja) {
+    private List<int[][]> calcularOpcionesEmpuje(int[] caja) {
         final int br = caja[0], bc = caja[1];
         int[][] direcciones = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
         List<int[]> lista = new ArrayList<>(Arrays.asList(direcciones));
         lista.sort(Comparator.comparingInt(d ->
                 Math.abs(META_FILA - (br + d[0])) + Math.abs(META_COL - (bc + d[1]))));
 
+        List<int[][]> opciones = new ArrayList<>();
         for (int[] d : lista) {
             int fr = br - d[0], fc = bc - d[1];
             int tr = br + d[0], tc = bc + d[1];
             if (dentro(fr, fc) && dentro(tr, tc)) {
-                return new int[][]{{fr, fc}, {tr, tc}};
+                opciones.add(new int[][]{{fr, fc}, {tr, tc}});
             }
         }
-        return null;
+        return opciones;
     }
 
     /** Calcula el siguiente paso (una celda) desde `actual` hacia `destino`,

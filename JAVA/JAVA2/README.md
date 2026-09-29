@@ -29,16 +29,23 @@ La planificación se vuelve a calcular en cada turno, pero no asegura que siempr
 | `Posicion.java`      | Representa una fila y una columna del tablero.                                                     |
 | `TipoCaja.java`      | Define los estados de una casilla: vacía, objetivo o bloqueo.                                      |
 | `entrada.txt`        | Configuración de ejemplo para iniciar la simulación.                                               |
+| `Makefile`           | Compila todos los archivos Java con un solo comando.                                               |
 
 ## Requisitos, compilación y ejecución
 
-Se necesita un JDK de Java 11 o posterior. Abre una terminal en la carpeta `JAVA2` y compila los archivos fuente:
+Se necesita un JDK de Java 11 o posterior. Para compilar con el Makefile también se necesita GNU Make instalado y disponible en el `PATH`. Abre una terminal en la carpeta `JAVA2` y ejecuta:
+
+```sh
+make
+```
+
+Este comando compila todos los archivos `.java` de la carpeta. También puedes usar `make compile`. Si no tienes Make instalado, compila directamente con el JDK:
 
 ```sh
 javac *.java
 ```
 
-Después, inicia el programa pasando como argumento el archivo de configuración:
+Después de compilar, inicia el programa pasando como argumento el archivo de configuración:
 
 ```sh
 java Main entrada.txt
@@ -50,7 +57,7 @@ También puedes indicar la ruta a otro archivo, por ejemplo:
 java Main casos/caso_sin_cajas.txt
 ```
 
-Estos comandos funcionan en Windows, Linux y macOS. En Windows puedes ejecutarlos desde PowerShell o CMD; en Linux y macOS, desde una terminal. Cada vez que cambies el código, vuelve a ejecutar `javac *.java` antes de iniciar el programa.
+Los comandos `javac` y `java` están disponibles en Windows, Linux y macOS al instalar un JDK y añadirlo al `PATH`. `make` funciona en esos sistemas si GNU Make está instalado. Cada vez que cambies el código, vuelve a compilar antes de iniciar el programa.
 
 ## Formato del archivo de entrada
 

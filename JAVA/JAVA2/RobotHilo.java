@@ -10,7 +10,6 @@ public class RobotHilo implements Runnable {
         this.robot = robot;
         this.tablero = tablero;
     }
-
     @Override
     public void run() {
 

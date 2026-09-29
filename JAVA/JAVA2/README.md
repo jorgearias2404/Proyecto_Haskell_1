@@ -118,9 +118,13 @@ Los casos válidos incluyen decisiones aleatorias: las posiciones iniciales, las
 
 ## Concurrencia
 
-El tablero es el recurso compartido por robots y productores. `Tablero` protege sus operaciones con un `ReentrantLock` justo, para que las acciones sobre sus datos no se ejecuten simultáneamente. Los productores usan además una condición (`Condition`) para esperar cuando el tablero está lleno; al extraer una caja, el tablero les notifica que pueden volver a comprobar si hay espacio.
+Para implementar la concurrencia, hicimos que cada robot y cada productor trabajara en su propio hilo. `Main` crea esos hilos, inicia primero los productores y después los robots. Así, ambos tipos de tarea pueden avanzar al mismo tiempo.
 
-Los robots y productores se ejecutan en hilos separados. `Main` inicia primero los productores y después los robots, espera a que terminen los robots, detiene a los productores y finalmente solicita el reporte.
+El tablero es el recurso que comparten todos esos hilos. Para evitar que dos acciones cambien el tablero a la vez y dejen posiciones inconsistentes, protegí sus operaciones con un `ReentrantLock` justo. Por ejemplo, antes de insertar una caja o ejecutar un turno de un robot, el hilo toma el bloqueo; al terminar, lo libera. De esta manera, aunque haya varios hilos activos, cada operación sobre el estado del tablero se realiza de forma segura.
+
+También agregué una `Condition` llamada `espacioDisponible`. Si un productor encuentra el tablero lleno, espera en esa condición en vez de seguir intentando insertar cajas. Cuando una caja objetivo llega a la salida y se extrae, queda una casilla libre y el tablero avisa a los productores para que vuelvan a comprobar si pueden insertar. Si la simulación termina mientras alguno está esperando, `Main` lo interrumpe para que pueda salir y finalizar.
+
+Los hilos de robot consumen batería al moverse o empujar. Cuando ya no tienen batería, terminan su tarea y avisan a `Main`. Cuando han terminado todos los robots, `Main` marca la simulación como inactiva, detiene y espera a los productores y, por último, pide al tablero que imprima el reporte final. El contador global de ticks y la cantidad de robots activos usan variables atómicas para actualizar esos valores compartidos con seguridad.
 
 ## Símbolos del tablero final
 

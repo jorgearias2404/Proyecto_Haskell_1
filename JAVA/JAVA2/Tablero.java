@@ -30,10 +30,6 @@ public class Tablero {
     private final ReentrantLock lock =
             new ReentrantLock(true);
 
-    /*
-     * Productores esperan aquí cuando el tablero
-     * está completamente ocupado.
-     */
     private final Condition espacioDisponible =
             lock.newCondition();
 

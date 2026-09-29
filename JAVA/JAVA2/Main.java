@@ -106,7 +106,7 @@ public class Main {
             }
 
             /*
-             * Primero iniciamos productores.
+             * iniciamos productores.
              */
             for (Thread hilo :
                     hilosProductores) {
@@ -115,7 +115,7 @@ public class Main {
             }
 
             /*
-             * Luego iniciamos robots.
+             *  iniciamos robots.
              */
             for (Thread hilo :
                     hilosRobots) {
